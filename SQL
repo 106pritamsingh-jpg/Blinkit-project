@@ -1,0 +1,230 @@
+
+*
+* Project: Blinkit Analytics
+* Author: Pritam Singh
+* Date: 2025-10-04
+*
+* Description: This script contains all the SQL queries used for the Blinkit sales analysis project.
+* It includes the initial database and table setup, followed by 20 analytical queries used to
+* derive insights for the Power BI dashboard.
+*
+
+
+
+-- =====================================================================
+-- 1. DATABASE AND TABLE SETUP
+-- =====================================================================
+
+-- Creates the database 'blinkit' if it doesn't already exist.
+CREATE DATABASE IF NOT EXISTS blinkit;
+
+-- Sets the newly created database as the one to use for the following commands.
+USE blinkit;
+
+-- Drops the table 'items' if it exists, to start fresh.
+DROP TABLE IF EXISTS items;
+
+-- Creates the 'items' table to store the sales data.
+CREATE TABLE items (
+    Item_Fat_Content VARCHAR(50),
+    Item_Identifier VARCHAR(10) NOT NULL,
+    Item_Type VARCHAR(50),
+    Outlet_Establishment_Year INT,
+    Outlet_Identifier VARCHAR(10) NOT NULL,
+    Outlet_Location_Type VARCHAR(20),
+    Outlet_Size VARCHAR(20),
+    Outlet_Type VARCHAR(50),
+    Item_Visibility DECIMAL(18, 10),
+    Item_Weight DECIMAL(10, 2),
+    Item_MRP DECIMAL(10, 4),
+    Sales DECIMAL(10, 4),
+    Rating DECIMAL(3, 1),
+    PRIMARY KEY (Item_Identifier, Outlet_Identifier)
+);
+
+
+-- =====================================================================
+-- 2. ALL 20 ANALYTICAL QUERIES
+-- =====================================================================
+
+-- Query 1: Total Sales KPI
+SELECT SUM(Sales) AS TotalSales
+FROM items;
+
+-- Query 2: Number of Unique Items KPI
+SELECT COUNT(DISTINCT Item_Identifier) AS NumberOfItems
+FROM items;
+
+-- Query 3: Average Sales KPI
+SELECT AVG(Sales) AS AverageSales
+FROM items;
+
+-- Query 4: Average Rating KPI
+SELECT AVG(Rating) AS AverageRating
+FROM items;
+
+-- Query 5: Sales by Outlet Establishment Year
+SELECT
+    Outlet_Establishment_Year,
+    SUM(Sales) AS TotalSales
+FROM items
+GROUP BY Outlet_Establishment_Year
+ORDER BY Outlet_Establishment_Year;
+
+-- Query 6: Sales by Item Type
+SELECT
+    Item_Type,
+    SUM(Sales) AS TotalSales
+FROM items
+GROUP BY Item_Type
+ORDER BY TotalSales DESC;
+
+-- Query 7: Sales by Fat Content (with data cleaning)
+SELECT
+    CASE
+        WHEN Item_Fat_Content IN ('Low Fat', 'LF', 'low fat') THEN 'Low Fat'
+        ELSE 'Regular'
+    END AS FatContent,
+    SUM(Sales) AS TotalSales
+FROM items
+GROUP BY FatContent;
+
+-- Query 8: Sales by Outlet Size
+SELECT
+    Outlet_Size,
+    SUM(Sales) AS TotalSales
+FROM items
+GROUP BY Outlet_Size;
+
+-- Query 9: Sales by Outlet Location
+SELECT
+    Outlet_Location_Type,
+    SUM(Sales) AS TotalSales
+FROM items
+GROUP BY Outlet_Location_Type
+ORDER BY TotalSales DESC;
+
+-- Query 10: Fat Content Sales by Outlet Tier (Pivoted)
+SELECT
+    Outlet_Location_Type,
+    SUM(CASE WHEN Item_Fat_Content = 'Regular' THEN Sales ELSE 0 END) AS Regular_Fat_Sales,
+    SUM(CASE WHEN Item_Fat_Content IN ('Low Fat', 'LF', 'low fat') THEN Sales ELSE 0 END) AS Low_Fat_Sales
+FROM items
+GROUP BY Outlet_Location_Type
+ORDER BY Outlet_Location_Type;
+
+-- Query 11: Summary Table by Outlet Type
+SELECT
+    Outlet_Type,
+    SUM(Sales) AS TotalSales,
+    COUNT(DISTINCT Item_Identifier) AS NoOfItems,
+    AVG(Sales) AS AvgSales,
+    AVG(Rating) AS AvgRating,
+    AVG(Item_Visibility) AS ItemVisibility
+FROM items
+GROUP BY Outlet_Type
+ORDER BY TotalSales DESC;
+
+-- Query 12: Top 10 Selling Products
+SELECT
+    Item_Identifier,
+    SUM(Sales) AS ProductSales
+FROM items
+GROUP BY Item_Identifier
+ORDER BY ProductSales DESC
+LIMIT 10;
+
+-- Query 13: Bottom 10 Selling Products
+SELECT
+    Item_Identifier,
+    SUM(Sales) AS ProductSales
+FROM items
+GROUP BY Item_Identifier
+ORDER BY ProductSales ASC
+LIMIT 10;
+
+-- Query 14: Top 5 Performing Outlets
+SELECT
+    Outlet_Identifier,
+    SUM(Sales) AS OutletSales
+FROM items
+GROUP BY Outlet_Identifier
+ORDER BY OutletSales DESC
+LIMIT 5;
+
+-- Query 15: Sales Contribution Percentage by Outlet Type
+SELECT
+    Outlet_Type,
+    SUM(Sales) AS TotalSales,
+    (SUM(Sales) * 100.0 / (SELECT SUM(Sales) FROM items)) AS ContributionPercentage
+FROM items
+GROUP BY Outlet_Type
+ORDER BY TotalSales DESC;
+
+-- Query 16: Rank Top 3 Products Within Each Item Type
+WITH RankedItems AS (
+    SELECT
+        Item_Type,
+        Item_Identifier,
+        SUM(Sales) AS TotalSales,
+        RANK() OVER(PARTITION BY Item_Type ORDER BY SUM(Sales) DESC) as SalesRank
+    FROM items
+    GROUP BY Item_Type, Item_Identifier
+)
+SELECT
+    Item_Type,
+    Item_Identifier,
+    TotalSales
+FROM RankedItems
+WHERE SalesRank <= 3;
+
+-- Query 17: Sales by Price Range
+SELECT
+    CASE
+        WHEN Item_MRP < 100 THEN 'Low Price'
+        WHEN Item_MRP BETWEEN 100 AND 200 THEN 'Medium Price'
+        ELSE 'High Price'
+    END AS PriceRange,
+    SUM(Sales) AS TotalSalesInRange
+FROM items
+GROUP BY PriceRange;
+
+-- Query 18: Outlets Performing Above Company Average
+SELECT
+    Outlet_Identifier,
+    SUM(Sales) AS TotalOutletSales
+FROM items
+GROUP BY Outlet_Identifier
+HAVING SUM(Sales) > (SELECT AVG(Sales) FROM items);
+
+-- Query 19: Average Rating per Item Type
+SELECT
+    Item_Type,
+    AVG(Rating) AS AverageRating
+FROM items
+GROUP BY Item_Type
+ORDER BY AverageRating DESC;
+
+-- Query 20: Most Sold Item in Each Location Tier
+WITH ItemPerformance AS (
+    SELECT
+        Outlet_Location_Type,
+        Item_Identifier,
+        SUM(Sales) AS Total_Sales
+    FROM items
+    GROUP BY Outlet_Location_Type, Item_Identifier
+),
+RankedItems AS (
+    SELECT
+        Outlet_Location_Type,
+        Item_Identifier,
+        Total_Sales,
+        RANK() OVER (PARTITION BY Outlet_Location_Type ORDER BY Total_Sales DESC) AS rnk
+    FROM ItemPerformance
+)
+SELECT
+    Outlet_Location_Type,
+    Item_Identifier,
+    Total_Sales
+FROM RankedItems
+WHERE rnk = 1;
