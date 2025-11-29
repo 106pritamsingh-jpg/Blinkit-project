@@ -10,18 +10,20 @@ The main objective is to analyze sales performance across various dimensions lik
 
 ## 🧾 Step 1: Data Cleaning & Excel Preparation
 
-The dataset consisted of over 8,500 rows with 13 columns, including:
+The dataset consisted of over 8,500 rows with 12 columns, including:
 - `Item_Identifier`: Unique ID for each product
 - `Item_Fat_Content`: Fat level (e.g., Low Fat, Regular)
 - `Item_Type`: Product category
-- `Item_MRP`: Maximum retail price of the product
 - `Outlet_Identifier`: Unique ID for each store
 - `Outlet_Establishment_Year`: The year the store was established
 - `Outlet_Size`: Size of the store (e.g., Small, Medium, High)
 - `Outlet_Location_Type`: Tier of the city where the store is located
 - `Outlet_Type`: Type of store (e.g., Supermarket, Grocery)
 - `Sales`: Total sales for the product in a particular outlet
-
+- `Item_Visibility`  
+- `Item_Weight`    
+- `Rating`
+  
 Tasks in Excel included:
 - Initial data profiling and understanding
 - Identifying and handling inconsistencies in categorical data (e.g., standardizing 'Low Fat' and 'LF')
